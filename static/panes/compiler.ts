@@ -177,7 +177,8 @@ export class Compiler extends MonacoPane<monaco.editor.IStandaloneCodeEditor, Co
     private linkedFadeTimeoutId: NodeJS.Timeout | null;
     private toolsMenu: JQuery<HTMLElement> | null;
     private revealJumpStack: (monaco.editor.ICodeEditorViewState | null)[];
-    private compilerPicker: CompilerPicker;
+    private compilerPicker: CompilerPicker | undefined;
+    private closed = false;
     private compiler: CompilerInfo | null;
     private recentInstructionSet: InstructionSet | null;
     private currentLangId: string | null;
@@ -353,6 +354,7 @@ export class Compiler extends MonacoPane<monaco.editor.IStandaloneCodeEditor, Co
 
     private async postInit(state: MonacoPaneState & CompilerState) {
         await this.initLangAndCompiler(state);
+        if (this.closed) return;
         if (state.options === undefined && !this.optionsChangedBeforeInitialStateLoad) {
             this.options =
                 languagesService.getLanguagesOrFail()[this.currentLangId as LanguageKey]?.defaultOptions ?? '';
@@ -464,11 +466,12 @@ export class Compiler extends MonacoPane<monaco.editor.IStandaloneCodeEditor, Co
     }
 
     override close(): void {
+        this.closed = true;
         codeLensHandler.unregister(this.id);
         this.eventHub.unsubscribe();
         this.eventHub.emit('compilerClose', this.id, this.sourceTreeId ?? 0);
         this.editor.dispose();
-        this.compilerPicker.destroy();
+        this.compilerPicker?.destroy();
     }
 
     onCompiler(compilerId: number, compiler: unknown, options: string, editorId: number, treeId: number): void {}

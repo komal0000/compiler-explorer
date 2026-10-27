@@ -199,3 +199,33 @@ describe('Compiler default options', () => {
         expect(fixture.sentOptions).toEqual([expectedOptions, expectedOptions]);
     });
 });
+
+describe('Compiler close', () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('closes cleanly while postInit is still resolving the compiler', async () => {
+        const compiler = Object.create(Compiler.prototype) as Compiler;
+        let finishInit = () => {};
+        Object.assign(compiler, {
+            id: 1,
+            hub: {deferred: false},
+            eventHub: {emit: vi.fn(), unsubscribe: vi.fn()},
+            editor: {dispose: vi.fn()},
+            initLangAndCompiler: () =>
+                new Promise<void>(resolve => {
+                    finishInit = resolve;
+                }),
+            sendCompiler: vi.fn(),
+        });
+        const initializing = Reflect.get(compiler, 'postInit').call(compiler, {compiler: 'gdefault'});
+
+        expect(() => compiler.close()).not.toThrow();
+        finishInit();
+        await initializing;
+
+        expect(Reflect.get(compiler, 'compilerPicker')).toBeUndefined();
+        expect(Reflect.get(compiler, 'sendCompiler')).not.toHaveBeenCalled();
+    });
+});
